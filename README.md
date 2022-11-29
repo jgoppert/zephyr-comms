@@ -1,5 +1,4 @@
 # Cerebri
----------------------------------------
 
 ## Goal
 The goal of Cerebri is to create a minimalistic flight controller that it developed for:
