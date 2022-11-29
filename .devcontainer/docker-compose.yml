@@ -1,5 +1,5 @@
 services:
-  zephyr:
+  cerebri-build:
     build: .
     entrypoint: /bin/sh -c "bash"
     tty: true
