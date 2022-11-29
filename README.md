@@ -9,6 +9,8 @@ The goal of Cerebri is to create a minimalistic flight controller that it develo
 * Development
 	* Simple development using vscode and dev containers
 	* Documented debugging process
+	* Software in the Loop (SITL) support
+	* Hardware in the Loop (HITL) support
 
 At the completion of this project, we hope to have a flight controller that is useful
 for research and can rapidly deploy new algorithms that can be verified.
