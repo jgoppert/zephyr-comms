@@ -3,10 +3,10 @@
         {
             "name": "Linux",
             "includePath": [
+                "${workspaceFolder}/../zephyr/include",
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/zephyr/include",
-                "${workspaceFolder}/cerebri/build/zephyr/include/generated",
-                "${workspaceFolder}/cerebri/build/src"
+                "${workspaceFolder}/../zephyr/**",
+                "${workspaceFolder}/../modules/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

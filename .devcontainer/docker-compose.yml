@@ -1,5 +1,5 @@
 services:
-  cerebri-build:
+  cerebri:
     build: .
     entrypoint: /bin/sh -c "bash"
     tty: true
@@ -7,7 +7,6 @@ services:
     volumes:
       - ./workspace:/workdir
       - ..:/workdir/cerebri
-      - .vscode:/workdir/.vscode
     devices:
       - /dev/net/tun:/dev/net/tun
     cap_add:
