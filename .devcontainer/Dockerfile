@@ -21,4 +21,6 @@ RUN apt-get clean -y && \
 
 RUN chown -R user:user /workdir
 
+WORKDIR /workdir/cerebri
+
 USER user

@@ -1,5 +1,6 @@
 services:
   cerebri:
+    hostname: cerebri
     build: .
     entrypoint: /bin/sh -c "bash"
     tty: true
