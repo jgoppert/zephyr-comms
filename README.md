@@ -25,11 +25,20 @@ for research and can rapidly deploy new algorithms that can be verified.
 ## Quick Start
 
 ### On host
+
+#### VSCode
 Start the directory in visual studio code and select yes, when asked if you would like to reopen folder to develop in container.
 ```bash
 git clone git@github.com/jgoppert/cerebri
 cd cerebri
 code .
+```
+
+#### Command Line
+Note: If you you prefer the command line instead of vscode, you can start the devcontainer using:
+```bash
+cd ~/.devcontainer
+docker compose up cerebri
 ```
 
 In container terminal within vscode, setup the west workspace.
