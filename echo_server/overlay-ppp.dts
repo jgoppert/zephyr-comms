@@ -1,0 +1,5 @@
+/ {
+     chosen {
+             zephyr,ppp-uart = &uart1;
+     };
+};
