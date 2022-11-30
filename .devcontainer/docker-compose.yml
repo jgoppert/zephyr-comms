@@ -6,7 +6,7 @@ services:
     tty: true
     stdin_open: true
     volumes:
-      - ./workdir:/home/user/workdir
+      - ./workdir:/workdir
       - ..:/workdir/cerebri
     devices:
       - /dev/net/tun:/dev/net/tun
