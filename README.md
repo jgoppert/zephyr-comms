@@ -14,6 +14,7 @@ The goal of Cerebri is to create a minimalistic flight controller that it develo
     * Minimal maintenance (One supported toolchain only)
 	  * One officially supported development environment: ubuntu 22.04
       * One official simulator: Gazebo Fortress
+      * List of officially supported boards
 
 At the completion of this project, we hope to have a flight controller that is useful
 for research and can rapidly deploy new algorithms that can be verified.
