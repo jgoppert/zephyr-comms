@@ -12,6 +12,11 @@ manifest:
 
   projects:
     - name: zephyr
+      west-commands: scripts/west-commands.yml
       remote: zephyrproject-rtos
       revision: v3.2.0
-      import: true
+      clone-depth: 1
+      import:
+        - name-allowlist:
+          - nanopb
+          - mbedtls

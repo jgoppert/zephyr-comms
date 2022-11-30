@@ -9,10 +9,11 @@ ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 # change to root to install
 USER root
 
-# install iputils
+# install other packages
 RUN apt-get -y update && \
 	apt-get install --no-install-recommends -y \
-	iputils-ping
+	iputils-ping \
+	vim
 
 # Clean up stale packages
 RUN apt-get clean -y && \
