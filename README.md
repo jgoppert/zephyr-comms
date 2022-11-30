@@ -21,21 +21,29 @@ for research and can rapidly deploy new algorithms that can be verified.
 
 ## Quick Start
 
-On host, start the directory in visual studio code and select yes, when asked if you would like to reopen folder to develop in container.
+### On host
+Start the directory in visual studio code and select yes, when asked if you would like to reopen folder to develop in container.
 ```bash
 git clone git@github.com/jgoppert/cerebri
 cd cerebri
 code .
 ```
 
+In container terminal within vscode, setup the west workspace.
+```bash
+west init -l .
+west update
+```
+
 ### Protobuf UART Test
-In container terminal within vscode
+In container terminal within vscode. The -p option is a pristine build,
+remove to build only based on changes.
 ```bash
 west build -b native_posix protobuf_uart -p
 ```
 
 ### Ethernet Test
-In container terminal within vscode
+In container terminal within vscode run:
 ```bash
 west build -b native_posix eth_native_posix -p
 ```

@@ -19,6 +19,6 @@ RUN apt-get clean -y && \
 	apt-get autoremove --purge -y && \
 	rm -rf /var/lib/apt/lists/*
 
-USER user
+RUN chown -R user:user /workdir
 
-#RUN echo "source $HOME/zephyrproject/zephyr/zephyr-env.sh" > $HOME/.bashrc
+USER user
