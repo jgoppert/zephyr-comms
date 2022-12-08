@@ -1,0 +1,4 @@
+name: tinyframe
+build:
+  cmake: zephyr
+  kconfig: zephyr/Kconfig

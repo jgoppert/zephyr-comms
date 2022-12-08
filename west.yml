@@ -6,17 +6,23 @@ manifest:
     path: cerebri
     west-commands: scripts/west-commands.yml
 
-  remotes:
-    - name: zephyrproject-rtos
-      url-base: https://github.com/zephyrproject-rtos
-
   projects:
     - name: zephyr
+      url: https://github.com/zephyrproject-rtos/zephyr
       west-commands: scripts/west-commands.yml
-      remote: zephyrproject-rtos
       revision: v3.2.0
       clone-depth: 1
       import:
         - name-allowlist:
           - nanopb
           - mbedtls
+          - net-tools
+    - name: tinyframe
+      url: https://github.com/MightyPork/TinyFrame
+      revision: a29167a
+      clone-depth: 1
+      path: cerebri/modules/tinyframe/TinyFrame
+    - name: ponyframe
+      url: https://github.com/MightyPork/PonyFrame.git
+      revision: c932b20
+      path: cerebri/tools/ponyframe

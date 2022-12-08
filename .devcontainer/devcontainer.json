@@ -43,7 +43,8 @@
 			"ms-vscode.cmake-tools",
 			"ms-vscode.cpptools-extension-pack",
 			"ms-vscode.cpptools-themes",
-			"trond-snekvik.devicetree"
+			"trond-snekvik.devicetree",
+			"ms-python.python"
 			]
 		}
 	  }

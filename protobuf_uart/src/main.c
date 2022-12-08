@@ -15,51 +15,6 @@
 
 static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
 
-
-/*
- * Print a null-terminated string character by character to the UART interface
- */
-void print_uart(char *buf)
-{
-	int msg_len = strlen(buf);
-	for (int i = 0; i < msg_len; i++) {
-		uart_poll_out(uart_dev, buf[i]);
-	}
-}
-
-int read_uart(char * buf, size_t n) {
-	if (!device_is_ready(uart_dev)) {
-		printk("UART device not found!\n");
-		return ENODEV;
-	}
-	int i=0;
-	while (true) {
-		// if at max length, terminate and return
-		if (i >= n - 1) {
-			buf[n - 1] = '\0';
-			return 0;
-		}
-
-		// read a byte
-		int ret = uart_poll_in(uart_dev, &buf[i]);
-
-		// if no data, idle, then continue
-		if (ret != 0) {
-			k_busy_wait(10);
-			continue;
-		}
-
-		// if character is line end, terminate string
-		if ((buf[i] == '\n' || buf[i] == '\r') && i > 0) {
-			/* terminate string */
-			buf[i] = '\0';
-			return 0;
-		}
-		// next character
-		i++;
-	}
-}
-
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
@@ -67,97 +22,124 @@ int read_uart(char * buf, size_t n) {
 #include <pb_decode.h>
 #include "src/simple.pb.h"
 
-bool encode_message(uint8_t *buffer, size_t buffer_size, size_t *message_length)
+#include <stdio.h>
+#include <string.h>
+#include "TinyFrame/TinyFrame.h"
+#include "TinyFrame/demo/utils.h"
+
+#define TX_BUF_SIZE 100
+#define RX_BUF_SIZE 100
+
+#define TYPE_HELLO 0x21
+#define TYPE_SIMPLE 0x22
+
+uint8_t tx_buf[TX_BUF_SIZE];
+uint8_t rx_buf[RX_BUF_SIZE];
+
+TinyFrame *tf0;
+
+/**
+ * This function should be defined in the application code.
+ * It implements the lowest layer - sending bytes to UART (or other)
+ */
+void TF_WriteImpl(TinyFrame *tf, const uint8_t *buff, uint32_t len)
 {
-	bool status;
-
-	/* Allocate space on the stack to store the message data.
-	 *
-	 * Nanopb generates simple struct definitions for all the messages.
-	 * - check out the contents of simple.pb.h!
-	 * It is a good idea to always initialize your structures
-	 * so that you do not have garbage data from RAM in there.
-	 */
-	SimpleMessage message = SimpleMessage_init_zero;
-
-	/* Create a stream that will write to our buffer. */
-	pb_ostream_t stream = pb_ostream_from_buffer(buffer, buffer_size);
-
-	/* Fill in the lucky number */
-	message.lucky_number = 13;
-	for (int i = 0; i < 8; ++i) {
-		message.buffer[i] = (uint8_t)(i * 2);
+	for (int i=0; i<len; i++) {
+		uart_poll_out(uart_dev, buff[i]);
 	}
-
-	/* Now we are ready to encode the message! */
-	status = pb_encode(&stream, SimpleMessage_fields, &message);
-	*message_length = stream.bytes_written;
-
-	if (!status) {
-		printk("Encoding failed: %s\n", PB_GET_ERROR(&stream));
-	}
-
-	return status;
 }
 
-bool decode_message(uint8_t *buffer, size_t message_length)
+/** An example listener function */
+TF_Result myListener(TinyFrame *tf, TF_Msg *msg)
 {
-	bool status;
+    dumpFrameInfo(msg);
+    return TF_STAY;
+}
 
+/** An example listener function */
+TF_Result centralListener(TinyFrame *tf, TF_Msg *msg)
+{
+    dumpFrameInfo(msg);
+    return TF_STAY;
+}
+
+TF_Result testIdListener(TinyFrame *tf, TF_Msg *msg)
+{
+    printf("OK - ID Listener triggered for msg!\n");
+    dumpFrameInfo(msg);
+    return TF_CLOSE;
+}
+
+
+TF_Result simpleListener(TinyFrame *tf, TF_Msg *msg)
+{
 	/* Allocate space for the decoded message. */
 	SimpleMessage message = SimpleMessage_init_zero;
 
 	/* Create a stream that reads from the buffer. */
-	pb_istream_t stream = pb_istream_from_buffer(buffer, message_length);
+	pb_istream_t stream = pb_istream_from_buffer(rx_buf, RX_BUF_SIZE);
 
 	/* Now we are ready to decode the message. */
-	status = pb_decode(&stream, SimpleMessage_fields, &message);
+	int status = pb_decode(&stream, SimpleMessage_fields, &message);
 
 	/* Check for errors... */
 	if (status) {
 		/* Print the data contained in the message. */
 		printk("Your lucky number was %d!\n", (int)message.lucky_number);
-		printk("Buffer contains: ");
-		for (int i = 0; i < 8; ++i) {
-			printk("%s%d", ((i == 0) ? "" : ", "), (int) message.buffer[i]);
-		}
 		printk("\n");
 	} else {
 		printk("Decoding failed: %s\n", PB_GET_ERROR(&stream));
 	}
-
-	return status;
+	return TF_STAY;
 }
 
 void main(void)
 {
-	if (!device_is_ready(uart_dev)) {
-		printk("UART device not found!\n");
-		return;
-	}
+    TF_Msg msg;
 
-	/* This is the buffer where we will store our message. */
-	uint8_t buffer[SimpleMessage_size];
-	size_t message_length;
+    // Set up the TinyFrame library
+    tf0 = TF_Init(TF_MASTER); // 1 = master, 0 = slave
+    TF_AddGenericListener(tf0, myListener);
+	TF_AddTypeListener(tf0, 0x01, centralListener);
 
-	/* Encode our message */
-	if (!encode_message(buffer, sizeof(buffer), &message_length)) {
-		return;
-	}
-
-	/* Now we could transmit the message over network, store it in a file or
-	 * wrap it to a pigeon's leg.
-	 */
-
-	/* But because we are lazy, we will just decode it immediately. */
-	decode_message(buffer, message_length);
-
-	char rx_buf[8];
 
 	while (true) {
-		printk("reading uart\n");
-		read_uart(rx_buf, 8);
-		printk("finished reading\n");
-		print_uart(rx_buf);
+
+		// send Hello message
+		{
+			TF_ClearMsg(&msg);
+			msg.type = TYPE_HELLO;
+			msg.data = (pu8) "Hello TinyFrame";
+			msg.len = 16;
+			TF_Send(tf0, &msg);
+		}
+
+		// send Simple message
+		{
+			SimpleMessage message = SimpleMessage_init_zero;
+			message.lucky_number = 10;
+			pb_ostream_t tx_stream = pb_ostream_from_buffer(tx_buf, TX_BUF_SIZE);
+			pb_encode(&tx_stream, SimpleMessage_fields, &message);
+			
+			TF_ClearMsg(&msg);
+			msg.type = TYPE_SIMPLE;
+			msg.len = tx_stream.bytes_written;
+			msg.data = (pu8) tx_buf;
+			TF_Send(tf0, &msg);
+		}
+
+		// receive messages
+		{
+			uint8_t c;
+			int count = 0;
+			while (uart_poll_in(uart_dev, &c) == 0) {
+				TF_AcceptChar(tf0, c);
+				count++;
+			}
+			k_busy_wait(1000000);
+		}
+
+		// should move TF tick to a clock thread
+		TF_Tick(tf0);
 	}
 }

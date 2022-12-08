@@ -1,0 +1,11 @@
+config ZEPHYR_TINYFRAME_MODULE
+	bool
+
+menuconfig TINYFRAME
+	bool "Tinyframe Support"
+	help
+		This option enables the Tinyframe library.
+
+if TINYFRAME
+
+endif # TINYFRAME
