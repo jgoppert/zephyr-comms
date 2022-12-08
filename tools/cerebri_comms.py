@@ -5,28 +5,30 @@
 
 import serial
 from ponyframe import TinyFrame as TF
-import os
+from simple_pb2 import SimpleMessage
 import sys
 import time
 
+TYPE_HELLO = 0x21
+TYPE_SIMPLE = 0x22
 
-TYPE_SIMPLE = 0x21
-TYPE_HELLO = 0x22
+value = 0
 
-def fallback_listener(tf: TF.TinyFrame, frame):
+def fallback_listener(tf: TF.TinyFrame, frame: TF.TF_Msg):
     print("Fallback listener")
     print(frame)
 
-def simple_listener(tf: TF.TinyFrame, frame):
-    print("simple listener")
-    print(frame)
-
-def hello_listener(tf: TF.TinyFrame, frame):
-    print("hello listener")
-    print(frame)
-
+def simple_listener(tf: TF.TinyFrame, frame: TF.TF_Msg):
+    global value
+    msg = SimpleMessage()
+    msg.ParseFromString(frame.data)
+    print('{:d}: {:d}'.format(msg.clock, msg.lucky_number))
+    if value == msg.lucky_number:
+        value+=1
 
 def main(arguments):
+    global value
+    
     tf = TF.TinyFrame()
     tf.ID_BYTES=1
     tf.LEN_BYTES=2
@@ -39,13 +41,30 @@ def main(arguments):
     tf.write = ser.write
     tf.add_fallback_listener(fallback_listener)
     tf.add_type_listener(TYPE_SIMPLE, simple_listener)
-    tf.add_type_listener(TYPE_HELLO, hello_listener)
-    
+
+    ready = False
+    start = time.time()
+
+ 
     while 1:
-        tf.send(TYPE_HELLO, b"Hi Central")
+        # send message
+        if ready:
+            tf.send(type=TYPE_SIMPLE, pld=SimpleMessage(
+                lucky_number=value, clock=int((time.time() - start)*1e3)
+                ).SerializeToString())
+        
+        #tf.send(type=TYPE_HELLO, pld=b"hi")
+        
+        # read messages
         line = ser.read(ser.in_waiting)   # read a '\n' terminated line
         tf.accept(line)
-        time.sleep(1)
+
+        if len(line) > 0 and not ready:
+            start = time.time()
+            ready = True
+
+        # sleep 0.01 seconds
+        time.sleep(0.01)
     
     ser.close()
     

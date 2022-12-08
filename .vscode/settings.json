@@ -1,6 +1,8 @@
 {
     "cmake.configureOnOpen": false,
     "files.associations": {
-        "utils.h": "c"
+        "utils.h": "c",
+        "tinyframe.h": "c",
+        "random": "c"
     }
 }

@@ -38,6 +38,8 @@ uint8_t rx_buf[RX_BUF_SIZE];
 
 TinyFrame *tf0;
 
+int value = 0;
+
 /**
  * This function should be defined in the application code.
  * It implements the lowest layer - sending bytes to UART (or other)
@@ -56,13 +58,6 @@ TF_Result myListener(TinyFrame *tf, TF_Msg *msg)
     return TF_STAY;
 }
 
-/** An example listener function */
-TF_Result centralListener(TinyFrame *tf, TF_Msg *msg)
-{
-    dumpFrameInfo(msg);
-    return TF_STAY;
-}
-
 TF_Result testIdListener(TinyFrame *tf, TF_Msg *msg)
 {
     printf("OK - ID Listener triggered for msg!\n");
@@ -70,14 +65,13 @@ TF_Result testIdListener(TinyFrame *tf, TF_Msg *msg)
     return TF_CLOSE;
 }
 
-
 TF_Result simpleListener(TinyFrame *tf, TF_Msg *msg)
 {
 	/* Allocate space for the decoded message. */
 	SimpleMessage message = SimpleMessage_init_zero;
 
 	/* Create a stream that reads from the buffer. */
-	pb_istream_t stream = pb_istream_from_buffer(rx_buf, RX_BUF_SIZE);
+	pb_istream_t stream = pb_istream_from_buffer(msg->data, msg->len);
 
 	/* Now we are ready to decode the message. */
 	int status = pb_decode(&stream, SimpleMessage_fields, &message);
@@ -85,8 +79,8 @@ TF_Result simpleListener(TinyFrame *tf, TF_Msg *msg)
 	/* Check for errors... */
 	if (status) {
 		/* Print the data contained in the message. */
-		printk("Your lucky number was %d!\n", (int)message.lucky_number);
-		printk("\n");
+		printk("%lld: %d\n", message.clock, (int)message.lucky_number);
+		value = message.lucky_number;
 	} else {
 		printk("Decoding failed: %s\n", PB_GET_ERROR(&stream));
 	}
@@ -100,25 +94,25 @@ void main(void)
     // Set up the TinyFrame library
     tf0 = TF_Init(TF_MASTER); // 1 = master, 0 = slave
     TF_AddGenericListener(tf0, myListener);
-	TF_AddTypeListener(tf0, 0x01, centralListener);
-
+	TF_AddTypeListener(tf0, TYPE_SIMPLE, simpleListener);
 
 	while (true) {
 
 		// send Hello message
 		{
-			TF_ClearMsg(&msg);
-			msg.type = TYPE_HELLO;
-			msg.data = (pu8) "Hello TinyFrame";
-			msg.len = 16;
-			TF_Send(tf0, &msg);
+			//TF_ClearMsg(&msg);
+			//msg.type = TYPE_HELLO;
+			//msg.data = (pu8) "Hello TinyFrame";
+			//msg.len = 16;
+			//TF_Send(tf0, &msg);
 		}
 
 		// send Simple message
 		{
 			SimpleMessage message = SimpleMessage_init_zero;
-			message.lucky_number = 10;
-			pb_ostream_t tx_stream = pb_ostream_from_buffer(tx_buf, TX_BUF_SIZE);
+			message.lucky_number = value;
+			message.clock = k_uptime_get();
+			pb_ostream_t tx_stream = pb_ostream_from_buffer(tx_buf, SimpleMessage_size);
 			pb_encode(&tx_stream, SimpleMessage_fields, &message);
 			
 			TF_ClearMsg(&msg);
@@ -136,8 +130,10 @@ void main(void)
 				TF_AcceptChar(tf0, c);
 				count++;
 			}
-			k_busy_wait(1000000);
 		}
+
+		// sleep 0.01 seconds
+		k_busy_wait(10000);
 
 		// should move TF tick to a clock thread
 		TF_Tick(tf0);
