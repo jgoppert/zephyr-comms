@@ -1,0 +1,4 @@
+source "Kconfig.zephyr"
+module = protobuf_uart
+moduler-str = protobuf_uart
+rsource "../modules/tinyframe/Kconfig"
