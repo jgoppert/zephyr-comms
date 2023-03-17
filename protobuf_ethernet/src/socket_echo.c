@@ -12,8 +12,73 @@
 #include <pb_encode.h>
 #include <pb_decode.h>
 #include "src/simple.pb.h"
+#include "TinyFrame/TinyFrame.h"
+#include "TinyFrame/demo/utils.h"
+
+#define TX_BUF_SIZE 100
+#define RX_BUF_SIZE 100
+
+#define TYPE_HELLO 0x21
+#define TYPE_SIMPLE 0x22
 
 #define BIND_PORT 4242
+
+static uint8_t tx_buf[TX_BUF_SIZE];
+static uint8_t rx_buf[RX_BUF_SIZE];
+
+static TinyFrame *tf0;
+
+static int value = 0;
+static int client = 0;
+
+/**
+ * This function should be defined in the application code.
+ * It implements the lowest layer - sending bytes to UART (or other)
+ */
+void TF_WriteImpl(TinyFrame *tf, const uint8_t *buf, uint32_t len)
+{
+  int out_len;
+  const char *p;
+  p = buf;
+  do {
+    out_len = send(client, p, len, 0);
+    if (out_len < 0) {
+      printf("error: send: %d\n", errno);
+      return;
+    }
+    p += out_len;
+    len -= out_len;
+  } while (len);
+}
+
+TF_Result myListener(TinyFrame *tf, TF_Msg *msg)
+{
+    dumpFrameInfo(msg);
+    return TF_STAY;
+}
+
+TF_Result simpleListener(TinyFrame *tf, TF_Msg *msg)
+{
+  /* Allocate space for the decoded message. */
+  SimpleMessage message = SimpleMessage_init_zero;
+
+  /* Create a stream that reads from the buffer. */
+  pb_istream_t stream = pb_istream_from_buffer(msg->data, msg->len);
+
+  /* Now we are ready to decode the message. */
+  int status = pb_decode(&stream, SimpleMessage_fields, &message);
+
+  /* Check for errors... */
+  if (status) {
+    /* Print the data contained in the message. */
+    printk("%lld: %d\n", message.clock, (int)message.lucky_number);
+    value = message.lucky_number;
+  } else {
+    printk("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+  }
+  return TF_STAY;
+}
+
 
 void main(void)
 {
@@ -45,11 +110,18 @@ void main(void)
   printf("Single-threaded TCP echo server waits for a connection on "
          "port %d...\n", BIND_PORT);
 
+  TF_Msg msg;
+
+  // Set up the TinyFrame library
+  tf0 = TF_Init(TF_MASTER); // 1 = master, 0 = slave
+  TF_AddGenericListener(tf0, myListener);
+  TF_AddTypeListener(tf0, TYPE_SIMPLE, simpleListener);
+
   while (1) {
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
     char addr_str[32];
-    int client = accept(serv, (struct sockaddr *)&client_addr,
+    client = accept(serv, (struct sockaddr *)&client_addr,
             &client_addr_len);
 
     if (client < 0) {
@@ -62,31 +134,34 @@ void main(void)
     printf("Connection #%d from %s\n", counter++, addr_str);
 
     while (1) {
-      char buf[128], *p;
-      int len = recv(client, buf, sizeof(buf), 0);
-      int out_len;
-
-      if (len <= 0) {
-        if (len < 0) {
-          printf("error: recv: %d\n", errno);
-        }
-        break;
+      // send simple message
+      {
+        SimpleMessage message = SimpleMessage_init_zero;
+        message.lucky_number = value;
+        message.clock = k_uptime_get();
+        pb_ostream_t tx_stream = pb_ostream_from_buffer(tx_buf, SimpleMessage_size);
+        pb_encode(&tx_stream, SimpleMessage_fields, &message);
+        
+        TF_ClearMsg(&msg);
+        msg.type = TYPE_SIMPLE;
+        msg.len = tx_stream.bytes_written;
+        msg.data = (pu8) tx_buf;
+        TF_Send(tf0, &msg);
       }
 
-      p = buf;
-      do {
-        out_len = send(client, p, len, 0);
-        if (out_len < 0) {
-          printf("error: send: %d\n", errno);
-          goto error;
+      // receive messages
+      {
+        int len = recv(client, rx_buf, sizeof(rx_buf), 0);
+        for (int i=0;i < len; i++) {
+          TF_AcceptChar(tf0, rx_buf[i]);
         }
-        p += out_len;
-        len -= out_len;
-      } while (len);
-    }
+      }
 
-error:
-    close(client);
-    printf("Connection from %s closed\n", addr_str);
+      // sleep
+      k_busy_wait(100000);
+
+      // should move tf tick to a clock thread
+      TF_Tick(tf0);
+    }
   }
 }
